@@ -220,7 +220,7 @@ amplifon_app.post('/login', ipRateLimiter, async (req, res) => {
 
         if (!user || !await bcrypt.compare(Password, user.password)) {
             trackLoginAttempts(req, res, () => {});
-            return res.status(401).send({ response : 'Invalid email or password' });
+            return res.status(401).send({ response : (!user ? 'User not found' : 'Invalid password') });
         }
         
         if (memoryStore[req.ip]) {
@@ -426,6 +426,12 @@ amplifon_app.post('/addSale', authorize([userRoles.Admin, userRoles.Seller]), as
         request.input('Store_id', sql.Int, Store_id);
         request.input('Total_amount', sql.Float, Total_amount);
         request.input('Sale_date', sql.DateTime, Sale_date);
+
+        const storeExists = await checkStoreExists(Store_id);
+        if (!storeExists) {
+            res.status(404).send({ response: 'Store not found!' });
+            return;
+        }
 
         const result = await request.query`
             INSERT INTO Sales (store_id, total_amount, sale_date)
