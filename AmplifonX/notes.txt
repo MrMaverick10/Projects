@@ -1,7 +1,0 @@
-http://localhost:3000/login
-
-Authorization token
-
-content-type application/json
-
-finish html frontend for api test
