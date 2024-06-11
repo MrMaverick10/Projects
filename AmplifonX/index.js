@@ -46,7 +46,7 @@ const ipRateLimiter = (req, res, next) => {
     memoryStore[ip] = memoryStore[ip].filter(timestamp => now - timestamp < 2 * 60 * 1000);
 
     if (memoryStore[ip].length >= maxFailedLoginAttempts) {
-        return res.status(429).send({ response :  'Too many login attempts. Try again later.' });
+        return res.status(429).send({ response :  'Too many login attempts. Try again later.', status : 'ERROR' });
     }
 
     next();
@@ -128,10 +128,10 @@ amplifon_app.post('/clearDatabase', async (req, res) => {
 
         await commitTransaction(transaction);
 
-        res.send({ response: 'Database cleared!' });
+        res.send({ response: 'Database cleared!', status : 'OK' });
     } catch (err) {
         if (transaction) await rollbackTransaction(transaction);
-        res.status(500).send({ error: err.message });
+        res.status(500).send({ response : err.message, status : 'ERROR' });
     }
 });
 
@@ -142,13 +142,13 @@ const authenticateJWT = (req, res, next) => {
     if (token) {
         jwt.verify(token, jwtSecret, (err, user) => {
             if (err) {
-                return res.send({ response : '403 Forbidden - Your role is not authorized to access this API' });
+                return res.send({ response : '403 Forbidden - Your role is not authorized to access this API', status : 'ERROR' });
             }
             req.user = user;
             next();
         });
     } else {
-        res.send({ response : '401 Unauthorized - Who are you? API ACCESS DENIED!' });
+        res.send({ response : '401 Unauthorized - Who are you? API ACCESS DENIED!', status : 'ERROR' });
     }
 };
 
@@ -160,7 +160,7 @@ const authorize = (roles = []) => {
         authenticateJWT,
         (req, res, next) => {
             if (roles.length && !roles.includes(req.user.role)) {
-                return res.send({ response : '403 Forbidden - Your role is not authorized to access this API' });
+                return res.send({ response : '403 Forbidden - Your role is not authorized to access this API', status : 'ERROR' });
             }
             next();
         }
@@ -175,7 +175,7 @@ amplifon_app.post('/signup', async (req, res) => {
 
     try {
         if(!Email || !Password || !Role) {
-            res.send({ response :'Missing signup parameters!' });
+            res.send({ response :'Missing signup parameters!', status : 'ERROR' });
             return
         }
 
@@ -192,10 +192,10 @@ amplifon_app.post('/signup', async (req, res) => {
         `;
         await commitTransaction(transaction);
 
-        res.status(201).send({ response : 'User created, welcome in the Amplifon Store!'});
+        res.status(201).send({ response : 'User created, welcome in the Amplifon Store!', status : 'OK'});
     } catch (err) {
         if (transaction) await rollbackTransaction(transaction);
-        res.status(500).send({ response :err.message });
+        res.status(500).send({ response : err.message, status : 'ERROR' });
     }
 });
 
@@ -206,7 +206,7 @@ amplifon_app.post('/login', ipRateLimiter, async (req, res) => {
         const request = new sql.Request();
 
         if(!Email || !Password) {
-            res.send({ response : 'Missing login parameters!' });
+            res.send({ response : 'Missing login parameters!', status : 'ERROR' });
             return
         }
 
@@ -220,7 +220,7 @@ amplifon_app.post('/login', ipRateLimiter, async (req, res) => {
 
         if (!user || !await bcrypt.compare(Password, user.password)) {
             trackLoginAttempts(req, res, () => {});
-            return res.status(401).send({ response : (!user ? 'User not found' : 'Invalid password') });
+            return res.status(401).send({ response : (!user ? 'User not found' : 'Invalid password'), status : 'ERROR' });
         }
         
         if (memoryStore[req.ip]) {
@@ -234,9 +234,18 @@ amplifon_app.post('/login', ipRateLimiter, async (req, res) => {
             { expiresIn: '2h' }
         );
         
-        res.send({ token });
+        res.send({ response : token, status : 'OK' });
     } catch (err) {
-        res.status(500).send({ response :err.message });
+        res.status(500).send({ response : err.message, status : 'ERROR' });
+    }
+});
+
+amplifon_app.post('/logout', async (req, res) => {
+    try {
+        res.clearCookie('token');
+        res.send({ response: 'Logged out successfully!', status : 'OK' });
+    } catch (err) {
+        res.status(500).send({ response : err.message, status : 'ERROR' });
     }
 });
 
@@ -247,7 +256,7 @@ amplifon_app.post('/addStore', authorize([userRoles.Admin, userRoles.Manager]), 
     let transaction;
     try {
         if(!Name || !City) {
-            res.send({ response : 'Missing store parameters!' });
+            res.send({ response : 'Missing store parameters!', status : 'ERROR' });
             return
         }
 
@@ -262,10 +271,10 @@ amplifon_app.post('/addStore', authorize([userRoles.Admin, userRoles.Manager]), 
                                            VALUES (@Name, @City)`;
         await commitTransaction(transaction);
 
-        res.status(201).send({ response : {  store_id: result.recordset[0].id }});
+        res.status(201).send({ response : {  store_id: result.recordset[0].id }, status : 'OK'});
     } catch (err) {
         if (transaction) await rollbackTransaction(transaction);
-        res.status(500).send({ response :err.message });
+        res.status(500).send({ response : err.message, status : 'ERROR' });
     }
 });
 
@@ -278,7 +287,7 @@ amplifon_app.get('/getStore', authorize([userRoles.Admin, userRoles.Seller, user
         request.input('Id', sql.Int, Id);
 
         if(!Id) {
-            res.send({ response : 'Missing store id!' });
+            res.send({ response : 'Missing store id!', status : 'ERROR' });
             return
         }
 
@@ -289,7 +298,7 @@ amplifon_app.get('/getStore', authorize([userRoles.Admin, userRoles.Seller, user
                                                  WHERE id = @Id`;
 
         if (storeResult.recordset.length === 0) {
-            return res.status(404).send({ response : 'Store not found' });
+            return res.status(404).send({ response : 'Store not found', status : 'ERROR' });
         }
 
         const totalSalesResult = await request.query`SELECT SUM(total_amount) AS TotalSales 
@@ -306,10 +315,10 @@ amplifon_app.get('/getStore', authorize([userRoles.Admin, userRoles.Seller, user
 
         await commitTransaction(transaction);
 
-        res.send({ response : store });
+        res.send({ response : store, status : 'OK' });
     } catch (err) {
         if (transaction) await rollbackTransaction(transaction);
-        res.status(500).send({ response : err.message });
+        res.status(500).send({ response : err.message, status : 'ERROR' });
     }
 });
 
@@ -332,9 +341,9 @@ amplifon_app.get('/getStores', authorize([userRoles.Admin, userRoles.Seller, use
            OFFSET @Offset ROWS 
             FETCH NEXT @PageSize ROWS ONLY
         `;
-        res.send({ response : result.recordset });
+        res.send({ response : result.recordset, status : 'OK' });
     } catch (err) {
-        res.status(500).send({ response : err.message });
+        res.status(500).send({ response : err.message, status : 'ERROR' });
     }
 });
 
@@ -352,7 +361,7 @@ amplifon_app.put('/updateStore', authorize([userRoles.Admin,userRoles.Manager]),
     let transaction;
     try {
         if(!Name || !Name || !City) {
-            res.send({ response : 'Missing store parameters!' });
+            res.send({ response : 'Missing store parameters!', status : 'ERROR' });
             return
         }
 
@@ -360,7 +369,7 @@ amplifon_app.put('/updateStore', authorize([userRoles.Admin,userRoles.Manager]),
 
         const storeExists = await checkStoreExists(Id);
         if (!storeExists) {
-            res.status(404).send({ response: 'Store not found!' });
+            res.status(404).send({ response: 'Store not found!', status : 'ERROR' });
             return;
         }
 
@@ -376,10 +385,10 @@ amplifon_app.put('/updateStore', authorize([userRoles.Admin,userRoles.Manager]),
         `;
         await commitTransaction(transaction);
 
-        res.send({ response : 'Store updated!' });
+        res.send({ response : 'Store updated!', status : 'OK' });
     } catch (err) {
         if (transaction) await rollbackTransaction(transaction);
-        res.status(500).send({ response :err.message });
+        res.status(500).send({ response : err.message, status : 'ERROR' });
     }
 });
 
@@ -388,7 +397,7 @@ amplifon_app.delete('/deleteStore', authorize([userRoles.Admin,userRoles.Manager
     let transaction;
     try {
         if(!Id) {
-            res.send({ response : 'Missing store id!' });
+            res.send({ response : 'Missing store id!', status : 'ERROR' });
             return
         }
 
@@ -402,10 +411,10 @@ amplifon_app.delete('/deleteStore', authorize([userRoles.Admin,userRoles.Manager
                              WHERE id = @Id`;
         await commitTransaction(transaction);
 
-        res.send({ response : 'Store deleted!' });
+        res.send({ response : 'Store deleted!', status : 'OK' });
     } catch (err) {
         if (transaction) await rollbackTransaction(transaction);
-        res.status(500).send({ response : err.message });
+        res.status(500).send({ response : err.message, status : 'ERROR' });
     }
 });
 
@@ -416,7 +425,7 @@ amplifon_app.post('/addSale', authorize([userRoles.Admin, userRoles.Seller]), as
     let transaction;
     try {
         if(!Store_id || !Total_amount || !Sale_date) {
-            res.send({ response : 'Missing sale parameters!' });
+            res.send({ response : 'Missing sale parameters!', status : 'ERROR' });
             return
         }
 
@@ -429,7 +438,7 @@ amplifon_app.post('/addSale', authorize([userRoles.Admin, userRoles.Seller]), as
 
         const storeExists = await checkStoreExists(Store_id);
         if (!storeExists) {
-            res.status(404).send({ response: 'Store not found!' });
+            res.status(404).send({ response: 'Store not found!', status : 'ERROR' });
             return;
         }
 
@@ -439,10 +448,10 @@ amplifon_app.post('/addSale', authorize([userRoles.Admin, userRoles.Seller]), as
         `;
         await commitTransaction(transaction);
 
-        res.status(201).send({ response : 'Sale created!' } );
+        res.status(201).send({ response : 'Sale created!', status : 'OK' } );
     } catch (err) {
         if (transaction) await rollbackTransaction(transaction);
-        res.status(500).send({ response : err.message });
+        res.status(500).send({ response : err.message, status : 'ERROR' });
     }
 });
 
@@ -462,9 +471,9 @@ amplifon_app.get('/getSales', authorize([userRoles.Admin, userRoles.Manager]), a
             OFFSET @Offset ROWS
              FETCH NEXT @PageSize ROWS ONLY
         `;
-        res.send({ response : result.recordset });
+        res.send({ response : result.recordset, status : 'OK' });
     } catch (err) {
-        res.status(500).send({ response : err.message });
+        res.status(500).send({ response : err.message, status : 'ERROR' });
     }
 });
 
@@ -478,9 +487,9 @@ amplifon_app.get('/leaderboard', authorize([userRoles.Admin, userRoles.Manager])
              GROUP BY Stores.name
              ORDER BY TotalSales DESC
         `;
-        res.send({ response : result.recordset });
+        res.send({ response : result.recordset, status : 'OK' });
     } catch (err) {
-        res.status(500).send({ response : err.message });
+        res.status(500).send({ response : err.message, status : 'ERROR' });
     }
 });
 
