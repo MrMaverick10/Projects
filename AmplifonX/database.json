@@ -1,0 +1,13 @@
+{
+    "dev": {
+      "driver": "mssql",
+      "user": "sa",
+      "password": "Microarea.",
+      "host": "MARTOM2-NB",
+      "database": "ampl_x_test",
+      "options": {
+        "encrypt": true,
+        "enableArithAbort": true
+      }
+    }
+  }

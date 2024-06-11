@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Tests</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            color: #333;
+        }
+        h2 {
+            color: #555;
+        }
+        form {
+            background-color: #fff;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            width: 100%;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+        }
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        input[type="number"],
+        input[type="date"],
+        select {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin: 5px 0 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #apiResponses {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            width: 100%;
+            margin: 20px 0;
+        }
+        .alert-box {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background-color: #fff;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 300px;
+            border-left: 5px solid #007bff;
+            z-index: 1000;
+            animation: slideIn 0.3s ease-out;
+        }
+        .alert-box h3 {
+            margin: 0 0 10px;
+            color: #007bff;
+        }
+        .alert-box pre {
+            margin: 0;
+            color: #333;
+        }
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        .clear-db-button {
+            background-color: #ff4d4d;
+            color: white;
+            border: none;
+            font-weight: bold;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .clear-db-button:hover {
+            background-color: #ff3333;
+        }
+    </style>
+</head>
+<body>
+    <h1>AMPLIFONX TEST</h1>
+
+    <button class="clear-db-button" onclick="clearDatabase()">Clear Database</button>
+
+    <h1>AUTHENTICATION API</h1>
+
+    <h2>Sign Up</h2>
+    <form id="signupForm">
+        <label for="Email">Email:</label>
+        <input type="email" id="Email" name="Email" required><br><br>
+        
+        <label for="Password">Password:</label>
+        <input type="password" id="Password" name="Password" required><br><br>
+        
+        <label for="Role">Role:</label>
+        <select id="Role" name="Role" required>
+            <option value="A">Admin</option>
+            <option value="S">Seller</option>
+            <option value="M">Manager</option>
+        </select><br><br>
+        
+        <button type="button" onclick="signUp()">Sign Up</button>
+    </form>
+
+    <h2>Log in</h2>
+    <form id="signInForm">
+        <label for="Email">Email:</label>
+        <input type="email" id="Email" name="Email" required><br><br>
+        
+        <label for="Password">Password:</label>
+        <input type="password" id="Password" name="Password" required><br><br>
+        
+        <button type="button" onclick="signIn()">Sign In</button>
+    </form>
+
+    <h1>STORE API</h1>
+
+    <h2>Insert Store</h2>
+    <form id="insertStoreForm">
+        <label for="insertStoreName">Store Name:</label>
+        <input type="text" id="insertStoreName" name="insertStoreName" required><br><br>
+        <label for="insertStoreCity">City:</label>
+        <input type="text" id="insertStoreCity" name="insertStoreCity" required><br><br>
+        <button type="button" onclick="insertStore()">Insert Store</button>
+    </form>
+
+    <h2>Update Store</h2>
+    <form id="updateStoreForm">
+        <label for="updateStoreId">Store ID:</label>
+        <input type="text" id="updateStoreId" name="storeId" required><br><br>
+        <label for="updateStoreName">New Store Name:</label>
+        <input type="text" id="updateStoreName" name="storeName" required><br><br>
+        <label for="updateStoreCity">City:</label>
+        <input type="text" id="updateStoreCity" name="city" required><br><br>
+        <button type="button" onclick="updateStore()">Update Store</button>
+    </form>
+
+    <h2>Delete Store</h2>
+    <form id="deleteStoreForm">
+        <label for="deleteStoreId">Store ID:</label>
+        <input type="text" id="deleteStoreId" name="deleteStoreId" required><br><br>
+        <button type="button" onclick="deleteStore()">Delete Store</button>
+    </form>
+
+    <h2>Find One Store</h2>
+    <form id="findOneStoreForm">
+        <label for="findOneStoreId">Store ID:</label>
+        <input type="text" id="findOneStoreId" name="findOneStoreId" required><br><br>
+        <button type="button" onclick="findOneStore()">Find One Store</button>
+    </form>
+
+    <h2>Paginated Stores</h2>
+    <form id="paginatedStoresForm">
+        <label for="paginatedStoresName">Store Name:</label>
+        <input type="text" id="paginatedStoresName" name="paginatedStoresName"><br><br>
+        <label for="paginatedStoresCity">Store City:</label>
+        <input type="text" id="paginatedStoresCity" name="paginatedStoresCity"><br><br>
+        <label for="paginatedStoresPage">Page:</label>
+        <input type="number" id="paginatedStoresPage" name="paginatedStoresPage" min="1" value="1">
+        <label for="paginatedStoresSize">Page Size:</label>
+        <input type="number" id="paginatedStoresSize" name="paginatedStoresSize" min="1" value="5"><br><br>
+        <button type="button" onclick="paginatedStores()">Get Paginated Stores</button>
+    </form>
+
+    <h1>SALE API</h1>
+
+    <h2>Create Sale</h2>
+    <form id="createSaleForm">
+        <label for="createSaleAmount">Sale Amount:</label>
+        <input type="number" id="createSaleAmount" name="createSaleAmount" min="0" required><br><br>
+        <label for="createSaleDate">Sale Date:</label>
+        <input type="date" id="createSaleDate" name="createSaleDate" value="Now()" required><br><br>
+        <label for="createSaleStoreId">Store ID:</label>
+        <input type="text" id="createSaleStoreId" name="createSaleStoreId" required><br><br>
+        <button type="button" onclick="createSale()">Create Sale</button>
+    </form>
+
+    <h2>Paginated Sales</h2>
+    <form id="paginatedSalesForm">
+        <label for="paginatedSalesPage">Page:</label>
+        <input type="number" id="paginatedSalesPage" name="paginatedSalesPage" min="1" value="1">
+        <label for="paginatedSalesPageSize">Page Size:</label>
+        <input type="number" id="paginatedSalesPageSize" name="paginatedSalesPageSize" min="1" value="5"><br><br>
+        <button type="button" onclick="paginatedSales()">Get Paginated Sales</button>
+    </form>
+
+    <h2>Sales Leaderboard</h2>
+    <form id="salesLeaderboardForm">
+        <button type="button" onclick="salesLeaderboard()">Get Sales Leaderboard</button>
+    </form>
+
+    <div id="apiResponses">
+    </div>
+
+    <script>
+        document.getElementById('createSaleDate').valueAsDate = new Date();
+
+        //AUTHENTICATION API
+        function signUp() {
+                const formData = new FormData(document.getElementById('signupForm'));
+                const userData = {};
+                formData.forEach((value, key) => {
+                    userData[key] = value;
+                });
+
+                fetch('http://localhost:3000/signup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(userData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    displayResponse('Sign Up', data);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    displayResponse('Sign Up', { error: error.message });
+                });
+            }
+
+        function signIn() {
+                const formData = new FormData(document.getElementById('signInForm'));
+                const userData = {};
+                formData.forEach((value, key) => {
+                    userData[key] = value;
+                });
+
+                fetch('http://localhost:3000/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(userData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    document.cookie = `token=${data.token}`;
+                    displayResponse('Sign In', data);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    displayResponse('Sign In', { error: error.message });
+                });
+            }
+
+        //STORE API
+
+        function insertStore() {
+            const storeName = document.getElementById('insertStoreName').value;
+            const storeCity = document.getElementById('insertStoreCity').value;
+
+            fetch('http://localhost:3000/addStore', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `${getToken()}`
+                },
+                body: JSON.stringify({ Name: storeName, City : storeCity })
+            })
+            .then(response => response.json())
+            .then(data => {
+                displayResponse('Insert Store', data);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                displayResponse('Insert Store', { error: error.message });
+            });
+        }
+
+        function updateStore() {
+            const storeId = document.getElementById('updateStoreId').value;
+            const storeName = document.getElementById('updateStoreName').value;
+            const storeCity = document.getElementById('updateStoreCity').value;
+
+            fetch(`http://localhost:3000/updateStore`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `${getToken()}`
+                },
+                body: JSON.stringify({ Id: storeId, Name : storeName, City : storeCity })
+            })
+            .then(response => response.json())
+            .then(data => {
+                displayResponse('Update Store', data);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                displayResponse('Update Store', { error: error.message });
+            });
+        }
+
+        function deleteStore() {
+            const storeId = document.getElementById('deleteStoreId').value;
+
+            fetch(`http://localhost:3000/deleteStore`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `${getToken()}`
+                },
+                body: JSON.stringify({ Id: storeId })
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    throw new Error('Failed to delete store');
+                }
+            })
+            .then(data => {
+                displayResponse('Delete Store', data);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                displayResponse('Delete Store', { error: error.message });
+            });
+        }
+
+        function findOneStore() {
+            const storeId = document.getElementById('findOneStoreId').value;
+
+            fetch(`http://localhost:3000/getStore?Id=${storeId}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `${getToken()}`
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                displayResponse('Find One Store', data);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                displayResponse('Find One Store', { error: error.message });
+            });
+        }
+
+        function paginatedStores() {
+            const page = document.getElementById('paginatedStoresPage').value;
+            const pageSize = document.getElementById('paginatedStoresSize').value;
+            const storeName = document.getElementById('paginatedStoresName').value;
+            const storeCity = document.getElementById('paginatedStoresCity').value;
+
+            const url = new URL('http://localhost:3000/getStores');
+    
+            if (page) {
+                url.searchParams.append('Page', page);
+            }
+            if (pageSize) {
+                url.searchParams.append('PageSize', pageSize);
+            }
+            if (storeName) {
+                url.searchParams.append('Name', storeName);
+            }
+            if (storeCity) {
+                url.searchParams.append('City', storeCity);
+            }
+
+            fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `${getToken()}`
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                displayResponse('Paginated Stores', data);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                displayResponse('Paginated Stores', { error: error.message });
+            });
+        }
+
+        //SALE API
+
+        function createSale() {
+                const storeId = document.getElementById('createSaleStoreId').value;
+                const totalAmount = document.getElementById('createSaleAmount').value;
+                const saleDate = document.getElementById('createSaleDate').value;
+
+                fetch('http://localhost:3000/addSale', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `${getToken()}`
+                    },
+                    body: JSON.stringify({Store_id : storeId, Total_amount : totalAmount, Sale_date : saleDate})
+                })
+                .then(response => response.json())
+                .then(data => {
+                    displayResponse('Create Sale', data);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    displayResponse('Create Sale', { error: error.message });
+                });
+            }
+            
+        function paginatedSales() {
+            const page = document.getElementById('paginatedSalesPage').value;
+            const pageSize = document.getElementById('paginatedSalesPageSize').value;
+
+            const url = new URL('http://localhost:3000/getSales');
+    
+            if (page) {
+                url.searchParams.append('Page', page);
+            }
+            if (pageSize) {
+                url.searchParams.append('PageSize', pageSize);
+            }
+
+            fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `${getToken()}`
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                displayResponse('Paginated Stores', data);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                displayResponse('Paginated Stores', { error: error.message });
+            });
+        }
+
+        function salesLeaderboard() {
+                fetch('http://localhost:3000/leaderboard', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `${getToken()}`
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    displayResponse('Sales Leaderboard', data);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    displayResponse('Sales Leaderboard', { error: error.message });
+                });
+            }
+
+        function getToken() {
+                const cookies = document.cookie.split(';').map(cookie => cookie.trim());
+                for (const cookie of cookies) {
+                    const [name, value] = cookie.split('=');
+                    if (name === 'token') {
+                        return value;
+                    }
+                }
+                return '';
+            }
+
+        //GENERAL FUNCTIONS
+
+        function clearDatabase() {
+                fetch('http://localhost:3000/clearDatabase', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    displayResponse('Clear database', data);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    displayResponse('Clear database', { error: error.message });
+                });
+            }
+
+        function displayResponse(endpoint, data) {
+                const responseDiv = document.createElement('div');
+                responseDiv.classList.add('alert-box');
+                responseDiv.innerHTML = `<h3>${endpoint} Response</h3><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                
+                document.body.appendChild(responseDiv);
+                
+                setTimeout(() => {
+                    responseDiv.remove();
+                }, 5000);
+                
+                const apiResponseDiv = document.createElement('div');
+                apiResponseDiv.innerHTML = `<h3>${endpoint} Response</h3><pre>${JSON.stringify(data, null, 2)}</pre>`;
+                document.getElementById('apiResponses').appendChild(apiResponseDiv);
+            }
+    </script>
+</body>
+</html>
