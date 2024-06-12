@@ -53,14 +53,7 @@
         "CHARACTER_MAXIMUM_LENGTH": 50
       }
     ],
-    "data": [
-      {
-        "id": 27,
-        "email": "a",
-        "password": "$2a$10$/1Cut7NZxxTXbvu4Py8nL.UIGjhGrbW/RLg4wGz2T7fQJVVQzstBO",
-        "role": "A"
-      }
-    ]
+    "data": []
   },
   "Stores": {
     "structure": [

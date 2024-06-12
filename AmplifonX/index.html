@@ -618,7 +618,7 @@
                     document.body.appendChild(a);
                     a.click();
                     window.URL.revokeObjectURL(url);    
-                    displayResponse('Export database', { response: 'Database saved i your download folder', status: 'OK' }, false);
+                    displayResponse('Export database', { response: 'Database saved in your download folder', status: 'OK' }, false);
                 })
                 .catch(error => {
                     console.error('Error:', error);
