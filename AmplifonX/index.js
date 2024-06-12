@@ -7,9 +7,13 @@ const bcrypt                 = require('bcryptjs');
 const sql                    = require('mssql');
 const cors                   = require('cors');
 const amplifon_app           = express();
+const fs                     = require('fs');
+const path                   = require('path');
 const port                   = 3000;
 const jwtSecret              = 'anakin_skywalker';
 const maxFailedLoginAttempts = 10;
+const logFilePath            = path.join(__dirname, 'error.log');
+const memoryStore            = {};
 const userRoles              = {
                                  Admin: 'A',
                                  Seller: 'S',
@@ -18,11 +22,6 @@ const userRoles              = {
 
 amplifon_app.use(cors());
 amplifon_app.use(bodyParser.json());
-
-amplifon_app.listen(port, () => {
-    console.log(`AmplifonX Server running on http://localhost:${port}`);
-});
-
 amplifon_app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -31,9 +30,27 @@ amplifon_app.use((req, res, next) => {
     next();
 });
 
-//__________________________SECURITY 
+amplifon_app.listen(port, () => {
+    console.log(`AmplifonX Server running on http://localhost:${port}`);
+});
 
-const memoryStore = {};
+function logError(error) {
+    const currentDate = new Date().toLocaleString('it-IT', { timeZone: 'Europe/Rome', hour12: false });
+    const errorMessage = `[${currentDate}] - ${error}\n`
+
+    try{
+        if (fs.existsSync(logFilePath)) {
+            fs.appendFileSync(logFilePath, errorMessage);
+        } else {
+            fs.writeFileSync(logFilePath, errorMessage);
+        }
+    }
+    catch(err) {
+        console.error('Error on log file:', err);
+    }
+}
+
+//__________________________SECURITY__________________________//
 
 const ipRateLimiter = (req, res, next) => {
     const ip = req.ip;
@@ -46,6 +63,7 @@ const ipRateLimiter = (req, res, next) => {
     memoryStore[ip] = memoryStore[ip].filter(timestamp => now - timestamp < 2 * 60 * 1000);
 
     if (memoryStore[ip].length >= maxFailedLoginAttempts) {
+        logError(`${req.ip} - Too many login attempts`)
         return res.status(429).send({ response :  'Too many login attempts. Try again later.', status : 'ERROR' });
     }
 
@@ -74,7 +92,7 @@ setInterval(() => {
     }
 }, 60 * 1000);
 
-//__________________________DB MANAGEMENT
+//__________________________DB MANAGEMENT__________________________//
 
 const dbConfig = {
     user: process.env.DB_USER,
@@ -114,17 +132,11 @@ amplifon_app.post('/clearDatabase', async (req, res) => {
 
         const request = new sql.Request();
 
-        await request.query`
-            DELETE FROM Sales;
-        `;
+        await request.query`DELETE FROM Sales;`;
 
-        await request.query`
-            DELETE FROM Stores;
-        `;
+        await request.query`DELETE FROM Stores;`;
 
-        await request.query`
-            DELETE FROM Users;
-        `;
+        await request.query`DELETE FROM Users;`;
 
         await commitTransaction(transaction);
 
@@ -132,10 +144,72 @@ amplifon_app.post('/clearDatabase', async (req, res) => {
     } catch (err) {
         if (transaction) await rollbackTransaction(transaction);
         res.status(500).send({ response : err.message, status : 'ERROR' });
+        logError(err.message)
     }
 });
 
-//__________________________AUTHENTICATION AND USER APIS
+async function exportDb() {
+    try {
+        let tablesRequest = new sql.Request();
+
+        let tables = await tablesRequest.query`
+            SELECT TABLE_NAME 
+              FROM INFORMATION_SCHEMA.TABLES 
+             WHERE TABLE_TYPE = 'BASE TABLE'`;
+
+        let dbExport = {};
+
+        for (let table of tables.recordset) {
+            let tableName = table.TABLE_NAME;
+            dbExport[tableName] = {};
+
+            let structureRequest = new sql.Request();
+
+            structureRequest.input('tableName', sql.NVarChar, tableName);
+
+            let tableStructure = await structureRequest.query(`
+                SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH 
+                  FROM INFORMATION_SCHEMA.COLUMNS 
+                 WHERE TABLE_NAME = @tableName`)
+
+            dbExport[tableName].structure = tableStructure.recordset;
+
+            let dataRequest = new sql.Request();
+
+            let tableData = await dataRequest.query(`
+                SELECT * 
+                FROM ${tableName}`);
+
+            dbExport[tableName].data = tableData.recordset;
+        }
+
+        const filePath = path.join(__dirname, 'dbExport.json');
+        fs.writeFileSync(filePath, JSON.stringify(dbExport, null, 2), 'utf8');
+
+        return filePath; 
+    } catch (err) {
+        console.error('Error exporting database:', err);
+        logError(err.message)
+        throw err; 
+    }
+}
+
+amplifon_app.get('/exportDatabase', async (req, res) => {
+    try {
+        const filePath = await exportDb();
+        res.download(filePath, 'dbExport.json', (err) => {
+            if (err) {
+                res.status(500).send({ response :'Error downloading the database export', status : 'ERROR' });
+                logError(err.message)
+            }
+        });
+    } catch (err) {
+        res.status(500).send({ response :'Error exporting the database: ' + err.message, status : 'ERROR' });
+        logError(err.message)
+    }
+});
+
+//__________________________AUTHENTICATION AND USER APIS__________________________//
 
 const authenticateJWT = (req, res, next) => {
     const token = req.header('Authorization');
@@ -188,20 +262,20 @@ amplifon_app.post('/signup', async (req, res) => {
 
         await request.query`
             INSERT INTO Users (Email, Password, Role)
-            VALUES (@Email, @Password, @Role)
-        `;
+            VALUES (@Email, @Password, @Role)`;
+
         await commitTransaction(transaction);
 
         res.status(201).send({ response : 'User created, welcome in the Amplifon Store!', status : 'OK'});
     } catch (err) {
         if (transaction) await rollbackTransaction(transaction);
         res.status(500).send({ response : err.message, status : 'ERROR' });
+        logError(err.message)
     }
 });
 
 amplifon_app.post('/login', ipRateLimiter, async (req, res) => {
     const { Email, Password } = req.body;
-    
     try {
         const request = new sql.Request();
 
@@ -226,7 +300,6 @@ amplifon_app.post('/login', ipRateLimiter, async (req, res) => {
         if (memoryStore[req.ip]) {
             delete memoryStore[req.ip];
         }
-    
         
         const token = jwt.sign(
             { id: user.id, role: user.role },
@@ -237,6 +310,7 @@ amplifon_app.post('/login', ipRateLimiter, async (req, res) => {
         res.send({ response : token, status : 'OK' });
     } catch (err) {
         res.status(500).send({ response : err.message, status : 'ERROR' });
+        logError(err.message)
     }
 });
 
@@ -246,10 +320,11 @@ amplifon_app.post('/logout', async (req, res) => {
         res.send({ response: 'Logged out successfully!', status : 'OK' });
     } catch (err) {
         res.status(500).send({ response : err.message, status : 'ERROR' });
+        logError(err.message)
     }
 });
 
-//__________________________STORES APIS
+//__________________________STORES APIS__________________________//
 
 amplifon_app.post('/addStore', authorize([userRoles.Admin, userRoles.Manager]), async (req, res) => {
     const { Name, City } = req.body;
@@ -275,12 +350,12 @@ amplifon_app.post('/addStore', authorize([userRoles.Admin, userRoles.Manager]), 
     } catch (err) {
         if (transaction) await rollbackTransaction(transaction);
         res.status(500).send({ response : err.message, status : 'ERROR' });
+        logError(err.message)
     }
 });
 
 amplifon_app.get('/getStore', authorize([userRoles.Admin, userRoles.Seller, userRoles.Manager]), async (req, res) => {
     const { Id } = req.query;
-    let transaction;
 
     try {
         const request = new sql.Request();
@@ -291,14 +366,12 @@ amplifon_app.get('/getStore', authorize([userRoles.Admin, userRoles.Seller, user
             return
         }
 
-        transaction = await beginTransaction();
-
         const storeResult = await request.query`SELECT * 
                                                   FROM Stores 
                                                  WHERE id = @Id`;
 
         if (storeResult.recordset.length === 0) {
-            return res.status(404).send({ response : 'Store not found', status : 'ERROR' });
+            return res.send({ response : 'Store not found', status : 'ERROR' });
         }
 
         const totalSalesResult = await request.query`SELECT SUM(total_amount) AS TotalSales 
@@ -313,12 +386,10 @@ amplifon_app.get('/getStore', authorize([userRoles.Admin, userRoles.Seller, user
         store.TotalSales = totalSalesResult.recordset[0].TotalSales || 0;
         store.SalesHistory = salesHistoryResult.recordset;
 
-        await commitTransaction(transaction);
-
         res.send({ response : store, status : 'OK' });
     } catch (err) {
-        if (transaction) await rollbackTransaction(transaction);
         res.status(500).send({ response : err.message, status : 'ERROR' });
+        logError(err.message)
     }
 });
 
@@ -339,11 +410,12 @@ amplifon_app.get('/getStores', authorize([userRoles.Admin, userRoles.Seller, use
               AND LOWER(city) LIKE @City
             ORDER BY id
            OFFSET @Offset ROWS 
-            FETCH NEXT @PageSize ROWS ONLY
-        `;
+            FETCH NEXT @PageSize ROWS ONLY`;
+
         res.send({ response : result.recordset, status : 'OK' });
     } catch (err) {
         res.status(500).send({ response : err.message, status : 'ERROR' });
+        logError(err.message)
     }
 });
 
@@ -369,7 +441,7 @@ amplifon_app.put('/updateStore', authorize([userRoles.Admin,userRoles.Manager]),
 
         const storeExists = await checkStoreExists(Id);
         if (!storeExists) {
-            res.status(404).send({ response: 'Store not found!', status : 'ERROR' });
+            res.send({ response: 'Store not found!', status : 'ERROR' });
             return;
         }
 
@@ -381,14 +453,15 @@ amplifon_app.put('/updateStore', authorize([userRoles.Admin,userRoles.Manager]),
         await request.query`
             UPDATE Stores
                SET name = @Name, city = @City
-             WHERE id = @Id
-        `;
+             WHERE id = @Id`;
+
         await commitTransaction(transaction);
 
         res.send({ response : 'Store updated!', status : 'OK' });
     } catch (err) {
         if (transaction) await rollbackTransaction(transaction);
         res.status(500).send({ response : err.message, status : 'ERROR' });
+        logError(err.message)
     }
 });
 
@@ -415,10 +488,11 @@ amplifon_app.delete('/deleteStore', authorize([userRoles.Admin,userRoles.Manager
     } catch (err) {
         if (transaction) await rollbackTransaction(transaction);
         res.status(500).send({ response : err.message, status : 'ERROR' });
+        logError(err.message)
     }
 });
 
-//__________________________SALES APIS
+//__________________________SALES APIS__________________________//
 
 amplifon_app.post('/addSale', authorize([userRoles.Admin, userRoles.Seller]), async (req, res) => {
     const { Store_id, Total_amount, Sale_date } = req.body;
@@ -438,20 +512,21 @@ amplifon_app.post('/addSale', authorize([userRoles.Admin, userRoles.Seller]), as
 
         const storeExists = await checkStoreExists(Store_id);
         if (!storeExists) {
-            res.status(404).send({ response: 'Store not found!', status : 'ERROR' });
+            res.send({ response: 'Store not found!', status : 'ERROR' });
             return;
         }
 
         const result = await request.query`
             INSERT INTO Sales (store_id, total_amount, sale_date)
-            VALUES (@Store_id, @Total_amount, @Sale_date)
-        `;
+            VALUES (@Store_id, @Total_amount, @Sale_date)`;
+
         await commitTransaction(transaction);
 
         res.status(201).send({ response : 'Sale created!', status : 'OK' } );
     } catch (err) {
         if (transaction) await rollbackTransaction(transaction);
         res.status(500).send({ response : err.message, status : 'ERROR' });
+        logError(err.message)
     }
 });
 
@@ -469,11 +544,12 @@ amplifon_app.get('/getSales', authorize([userRoles.Admin, userRoles.Manager]), a
               FROM Sales
              ORDER BY sale_date DESC
             OFFSET @Offset ROWS
-             FETCH NEXT @PageSize ROWS ONLY
-        `;
+             FETCH NEXT @PageSize ROWS ONLY`;
+
         res.send({ response : result.recordset, status : 'OK' });
     } catch (err) {
         res.status(500).send({ response : err.message, status : 'ERROR' });
+        logError(err.message)
     }
 });
 
@@ -485,11 +561,12 @@ amplifon_app.get('/leaderboard', authorize([userRoles.Admin, userRoles.Manager])
               FROM Stores
               JOIN Sales ON Stores.id = Sales.store_id
              GROUP BY Stores.name
-             ORDER BY TotalSales DESC
-        `;
+             ORDER BY TotalSales DESC`;
+
         res.send({ response : result.recordset, status : 'OK' });
     } catch (err) {
         res.status(500).send({ response : err.message, status : 'ERROR' });
+        logError(err.message)
     }
 });
 

@@ -59,6 +59,7 @@
             border-radius: 4px;
             cursor: pointer;
             transition: background-color 0.3s ease;
+            margin: 10px;
         }
 
         button:hover {
@@ -144,8 +145,11 @@
     <img src="https://upload.wikimedia.org/wikipedia/commons/9/9d/Amplifon-Logo.png" alt="Amplifon Logo" class="logo">
 
     <h1>AMPLIFONX TEST</h1>
-
-    <button class="clear-db-button" onclick="clearDatabase()">♻️ Clear Database</button>
+    
+    <div class="center-button">
+        <button class="button" onclick="clearDatabase()">♻️ Clear Database</button>
+        <button class="button" onclick="exportDatabase()">📲 Export Database</button>
+    </div>
 
     <h1>👮🏼 AUTHENTICATION API 🔐</h1>
 
@@ -169,12 +173,12 @@
     </form>
 
     <h2>Log in</h2>
-    <form id="signInForm">
-        <label for="Email">Email:*</label>
-        <input type="email" id="Email" name="Email" required><br><br>
+    <form id="logInForm">
+        <label for="EmailLogin">Email:*</label>
+        <input type="email" id="EmailLogin" name="EmailLogin" required><br><br>
         
-        <label for="Password">Password:*</label>
-        <input type="password" id="Password" name="Password" required><br><br>
+        <label for="PasswordLogin">Password:*</label>
+        <input type="password" id="PasswordLogin" name="PasswordLogin" required><br><br>
         <div class="center-button">
             <button type="button" onclick="login()">Log in</button>
         </div>
@@ -254,7 +258,7 @@
         <label for="createSaleAmount">Sale Amount:*</label>
         <input type="number" id="createSaleAmount" name="createSaleAmount" min="0" required><br><br>
         <label for="createSaleDate">Sale Date:*</label>
-        <input type="date" id="createSaleDate" name="createSaleDate" value="Now()" required><br><br>
+        <input type="date" id="createSaleDate" name="createSaleDate" required><br><br>
         <label for="createSaleStoreId">Store ID:*</label>
         <input type="text" id="createSaleStoreId" name="createSaleStoreId" required><br><br>
         <div class="center-button">
@@ -286,7 +290,9 @@
     </div>
 
     <script>
-        document.getElementById('createSaleDate').valueAsDate = new Date();
+        var today = new Date();
+        var formattedDate = today.toISOString().substr(0, 10);
+        document.getElementById("createSaleDate").value = formattedDate;
 
         //AUTHENTICATION API
         function signUp() {
@@ -314,22 +320,22 @@
             }
 
         function login() {
-                const formData = new FormData(document.getElementById('signInForm'));
-                const userData = {};
-                formData.forEach((value, key) => {
-                    userData[key] = value;
-                });
+                const formData = new FormData(document.getElementById('logInForm'));
+
+                const emailLogin = document.getElementById('EmailLogin').value;
+                const passwordLogin = document.getElementById('PasswordLogin').value;
 
                 fetch('http://localhost:3000/login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(userData)
+                    body: JSON.stringify({ Email : emailLogin, Password : passwordLogin})
                 })
                 .then(response => response.json())
                 .then(data => {
-                    document.cookie = `token=${data.response}`;
+                    if(data.status != 'ERROR')
+                       document.cookie = `token=${data.response}`;
                     displayResponse('Sign In', data, data.status == 'ERROR');
                 })
                 .catch(error => {
@@ -597,6 +603,29 @@
                 });
             }
 
+            function exportDatabase() {
+                fetch('http://localhost:3000/exportDatabase', {
+                    method: 'GET'
+                })
+                .then(response => {
+                    return response.blob();
+                })
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'dbExport.json'; 
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);    
+                    displayResponse('Export database', { response: ' in the project folder', status: 'OK' }, false);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    displayResponse('Export database', { error: error.message }, true);
+                });
+            }
+
         function displayResponse(endpoint, data, isError) {
                 const responseDiv = document.createElement('div');
                 responseDiv.classList.add('alert-box');
@@ -617,8 +646,6 @@
                 apiResponseDiv.innerHTML = `<h3>${endpoint} Response</h3><pre>${JSON.stringify(data, null, 2)}</pre>`;
                 document.getElementById('apiResponses').appendChild(apiResponseDiv);
             }
-
-        
     </script>
 </body>
 </html>
