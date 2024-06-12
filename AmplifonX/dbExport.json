@@ -1,0 +1,130 @@
+{
+  "migrations": {
+    "structure": [
+      {
+        "COLUMN_NAME": "id",
+        "DATA_TYPE": "int",
+        "CHARACTER_MAXIMUM_LENGTH": null
+      },
+      {
+        "COLUMN_NAME": "name",
+        "DATA_TYPE": "nvarchar",
+        "CHARACTER_MAXIMUM_LENGTH": 255
+      },
+      {
+        "COLUMN_NAME": "run_on",
+        "DATA_TYPE": "datetime2",
+        "CHARACTER_MAXIMUM_LENGTH": null
+      }
+    ],
+    "data": [
+      {
+        "id": 3,
+        "name": "/20240610123844-init",
+        "run_on": "2024-06-10T13:17:03.843Z"
+      },
+      {
+        "id": 4,
+        "name": "/20240610124600-add-person-table",
+        "run_on": "2024-06-10T13:17:03.866Z"
+      }
+    ]
+  },
+  "Users": {
+    "structure": [
+      {
+        "COLUMN_NAME": "id",
+        "DATA_TYPE": "int",
+        "CHARACTER_MAXIMUM_LENGTH": null
+      },
+      {
+        "COLUMN_NAME": "email",
+        "DATA_TYPE": "nvarchar",
+        "CHARACTER_MAXIMUM_LENGTH": 255
+      },
+      {
+        "COLUMN_NAME": "password",
+        "DATA_TYPE": "nvarchar",
+        "CHARACTER_MAXIMUM_LENGTH": 255
+      },
+      {
+        "COLUMN_NAME": "role",
+        "DATA_TYPE": "nvarchar",
+        "CHARACTER_MAXIMUM_LENGTH": 50
+      }
+    ],
+    "data": [
+      {
+        "id": 27,
+        "email": "a",
+        "password": "$2a$10$/1Cut7NZxxTXbvu4Py8nL.UIGjhGrbW/RLg4wGz2T7fQJVVQzstBO",
+        "role": "A"
+      }
+    ]
+  },
+  "Stores": {
+    "structure": [
+      {
+        "COLUMN_NAME": "id",
+        "DATA_TYPE": "int",
+        "CHARACTER_MAXIMUM_LENGTH": null
+      },
+      {
+        "COLUMN_NAME": "name",
+        "DATA_TYPE": "nvarchar",
+        "CHARACTER_MAXIMUM_LENGTH": 255
+      },
+      {
+        "COLUMN_NAME": "city",
+        "DATA_TYPE": "nvarchar",
+        "CHARACTER_MAXIMUM_LENGTH": 255
+      }
+    ],
+    "data": []
+  },
+  "Sales": {
+    "structure": [
+      {
+        "COLUMN_NAME": "id",
+        "DATA_TYPE": "int",
+        "CHARACTER_MAXIMUM_LENGTH": null
+      },
+      {
+        "COLUMN_NAME": "store_id",
+        "DATA_TYPE": "int",
+        "CHARACTER_MAXIMUM_LENGTH": null
+      },
+      {
+        "COLUMN_NAME": "total_amount",
+        "DATA_TYPE": "decimal",
+        "CHARACTER_MAXIMUM_LENGTH": null
+      },
+      {
+        "COLUMN_NAME": "sale_date",
+        "DATA_TYPE": "datetime",
+        "CHARACTER_MAXIMUM_LENGTH": null
+      }
+    ],
+    "data": []
+  },
+  "Items": {
+    "structure": [
+      {
+        "COLUMN_NAME": "id",
+        "DATA_TYPE": "int",
+        "CHARACTER_MAXIMUM_LENGTH": null
+      },
+      {
+        "COLUMN_NAME": "name",
+        "DATA_TYPE": "nvarchar",
+        "CHARACTER_MAXIMUM_LENGTH": 255
+      },
+      {
+        "COLUMN_NAME": "code",
+        "DATA_TYPE": "int",
+        "CHARACTER_MAXIMUM_LENGTH": null
+      }
+    ],
+    "data": []
+  }
+}

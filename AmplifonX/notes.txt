@@ -1,0 +1,2 @@
+C:\Maverick\AmplifonX>http-server -p 8080
+Chrome

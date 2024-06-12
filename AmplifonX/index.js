@@ -52,10 +52,10 @@ function logError(error) {
 
 //__________________________SECURITY__________________________//
 
-const ipRateLimiter = (req, res, next) => {
+const ipRateLimiterAndTrackLoginAttempts = (req, res, next) => {
     const ip = req.ip;
     const now = Date.now();
-    
+
     if (!memoryStore[ip]) {
         memoryStore[ip] = [];
     }
@@ -63,22 +63,10 @@ const ipRateLimiter = (req, res, next) => {
     memoryStore[ip] = memoryStore[ip].filter(timestamp => now - timestamp < 2 * 60 * 1000);
 
     if (memoryStore[ip].length >= maxFailedLoginAttempts) {
-        logError(`${req.ip} - Too many login attempts`)
-        return res.status(429).send({ response :  'Too many login attempts. Try again later.', status : 'ERROR' });
+        logError(`${req.ip} - Too many login attempts`);
+        return res.status(429).send({ response: 'Too many login attempts. Try again later.', status: 'ERROR' });
     }
 
-    next();
-};
-
-const trackLoginAttempts = (req, res, next) => {
-    const ip = req.ip;
-    const now = Date.now();
-
-    if (!memoryStore[ip]) {
-        memoryStore[ip] = [];
-    }
-
-    memoryStore[ip].push(now);
     next();
 };
 
@@ -274,7 +262,7 @@ amplifon_app.post('/signup', async (req, res) => {
     }
 });
 
-amplifon_app.post('/login', ipRateLimiter, async (req, res) => {
+amplifon_app.post('/login', ipRateLimiterAndTrackLoginAttempts, async (req, res) => {
     const { Email, Password } = req.body;
     try {
         const request = new sql.Request();
@@ -293,7 +281,14 @@ amplifon_app.post('/login', ipRateLimiter, async (req, res) => {
         const user = userResult.recordset[0];
 
         if (!user || !await bcrypt.compare(Password, user.password)) {
-            trackLoginAttempts(req, res, () => {});
+            const ip = req.ip;
+            const now = Date.now();
+
+            if (!memoryStore[ip]) {
+                memoryStore[ip] = [];
+            }
+
+            memoryStore[ip].push(now);
             return res.status(401).send({ response : (!user ? 'User not found' : 'Invalid password'), status : 'ERROR' });
         }
         
